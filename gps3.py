@@ -11,8 +11,9 @@ import re
 ##################################################################
 # If you are reading this than what are you doing with your life #
 # Made with coffee by Ben0 over several night shifts             #
-# Don't judge the code, it was rushed ok                         #
-# about 5 lines to do the job, 265 to print crap to terminal     #
+# Relays UDP data to a specified list of IP addresses            #
+# Developed for linux only, must be run from a terminal          #
+# About 5 lines to do the job, 265 to print crap to terminal     #
 ##################################################################
 
 # Global Variables
@@ -105,14 +106,21 @@ def getBuffer():
     '''
     Returns the system udp tx buffer
     '''
+    # Do a netstat command
     out = subprocess.Popen(['netstat', '-a'], stdout=subprocess.PIPE)
     stdout,stderr = out.communicate()
     decoded = stdout.decode("utf-8").split('\n')
+    # Get line with port 5019
     for line in decoded:
         if 'localhost.localdom:5019' in line:
             splitline = line.split()
+            port_active = True
             return(splitline)
-
+        else:
+            port_active = False
+    # Handle when port is not active
+    if not port_active:
+        return(['udp', 0, 0])
 
 
 class display():
@@ -248,10 +256,8 @@ def asciiArt():
     )
 
 
-def main():
-    '''
-    Main funciton
-    '''
+
+if __name__ == '__main__':
 
     # Generate an ip list
     ipList()
@@ -276,12 +282,12 @@ def main():
     while True:
         # Receive UDP on socket
         try:
-            s.settimeout(None)
+            s.settimeout(1.1)
             data, addr = s.recvfrom(32768)
             receive_ok += 1
         except:
             receive_errors += 1
-            continue
+            addr = None
 
 
         try:
@@ -308,15 +314,18 @@ def main():
 
         # Calculate percentages, handle dividing by 0
         try:
-            receive_perc = round((1-(receive_errors/receive_ok))*100, 2)
+            receive_total = receive_ok + receive_errors
+            receive_perc = round((receive_ok/receive_total)*100, 2)
         except:
             receive_perc = 100
         try:
-            transmit_perc = round((1-(transmit_errors/transmit_ok))*100, 2)
+            transmit_total = transmit_ok + transmit_errors
+            transmit_perc = round((transmit_ok/transmit_total)*100, 2)
         except:
             transmit_perc = 100
         try:
-            send_perc = round((1-(send_errors/send_ok))*100, 2)
+            send_total = send_ok + send_errors
+            send_perc = round((send_ok/send_total)*100, 2)
         except:
             send_perc = 100
         
@@ -327,8 +336,3 @@ def main():
 
         # Refresh the screen
         _display.screen()
-
-
-
-if __name__ == '__main__':
-    main()
