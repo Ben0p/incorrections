@@ -12,16 +12,22 @@ import re
 # If you are reading this than what are you doing with your life #
 # Made with coffee by Ben0 over several night shifts             #
 # Don't judge the code, it was rushed ok                         #
-# about 5 lines to do the job, 265 to print bullshit to terminal #
+# about 5 lines to do the job, 265 to print crap to terminal     #
 ##################################################################
 
+# Global Variables
+# Blank IP List
 dest_ip_list = []
+# IP address and port to listen for UDP packets
 source_ip = '10.20.23.230'
 source_port = 5019
+# Local IP address and port to bind to
 binding_ip = '10.20.64.253'
 dest_port = 5019
+# File with the list of IP addresses
 ip_list = '/home/minesys/Desktop/final.conf'
 
+# Statistics
 transmit_ok = 0
 transmit_errors = 0
 transmit_perc = 0
@@ -32,15 +38,21 @@ send_ok = 0
 send_errors = 0
 send_perc = 0
 
+# Start timing
 _uptime = ''
 timestamp = time.time()
 delay = 0
 prev_delay = 0
 
+# Placeholder variable for netstat output
 netstat = ''
 
 
 def ipList():
+    '''
+    Parse ip_list file and append to dest_ip_list array
+    Ignore lines starting with #
+    '''
     with open(ip_list, 'r') as f:
         for line in f.readlines():
             if line[0] == '#':
@@ -53,6 +65,10 @@ def ipList():
 
 
 def send(ip, data, s):
+    '''
+    Send {data} to {ip} using {s} (socket)
+    This is threaded
+    '''
     try:
         s.settimeout(0.01)
         s.sendto(data, (ip, dest_port))
@@ -63,6 +79,9 @@ def send(ip, data, s):
     s.close()
 
 def uptime(seconds):
+    '''
+    Calculates uptime in weeks, days, hours, minutes, seconds
+    '''
     intervals = (
     ('w', 604800),  # 60 * 60 * 24 * 7
     ('d', 86400),    # 60 * 60 * 24
@@ -83,6 +102,9 @@ def uptime(seconds):
     return(', '.join(result[:4]))
 
 def getBuffer():
+    '''
+    Returns the system udp tx buffer
+    '''
     out = subprocess.Popen(['netstat', '-a'], stdout=subprocess.PIPE)
     stdout,stderr = out.communicate()
     decoded = stdout.decode("utf-8").split('\n')
@@ -94,6 +116,9 @@ def getBuffer():
 
 
 class display():
+    '''
+    Curses display for the current statistics
+    '''
 
     def __init__(self):
         self.stdscr = curses.initscr()
@@ -105,23 +130,28 @@ class display():
 
 
     def screen(self):
+        # Clear the screen
         self.stdscr.clear()
 
+        # Create a boarder
         self.stdscr.border(0)
 
+        # Title
         self.stdscr.addstr(0,32,"Minesystems' UDP Relay")
 
-        self.box1 = curses.newwin(3, 28, 1, 29)
-        self.box2 = curses.newwin(5, 28, 4, 1)
-        self.box3 = curses.newwin(5, 28, 4, 29)
-        self.box4 = curses.newwin(5, 28, 4, 57)
-        self.box5 = curses.newwin(4, 28, 9, 1)
-        self.box6 = curses.newwin(4, 28, 9, 29)
-        self.box7 = curses.newwin(4, 28, 9, 57)
-        self.box8 = curses.newwin(3, 28, 1, 1) #Top Left
-        self.box9 = curses.newwin(3, 28, 1, 57) #Top Right
-        self.box10 = curses.newwin(20, 44, 13, 20)
+        # Position windows
+        self.box1 = curses.newwin(3, 28, 1, 29) # Top middle (uptime)
+        self.box2 = curses.newwin(5, 28, 4, 1) # Middle left (corrections in)
+        self.box3 = curses.newwin(5, 28, 4, 29) # Middle middle (corrections out)
+        self.box4 = curses.newwin(5, 28, 4, 57) # Middle right (corrections sent)
+        self.box5 = curses.newwin(4, 28, 9, 1) # Bottom left (list)
+        self.box6 = curses.newwin(4, 28, 9, 29) # Bottom middle (binding)
+        self.box7 = curses.newwin(4, 28, 9, 57) # Bottom right (buffer)
+        self.box8 = curses.newwin(3, 28, 1, 1) # Top Left (warning)
+        self.box9 = curses.newwin(3, 28, 1, 57) # Top Right (delay)
+        self.box10 = curses.newwin(20, 44, 13, 20) # Bottom (ascii art)
 
+        # Create boarder box's
         self.box1.box()
         self.box2.box()
         self.box3.box()
@@ -133,7 +163,7 @@ class display():
         self.box9.box()
         self.box10.box()
 
-
+        # Titles of the windows
         self.box1.addstr(0,11,"Uptime")
         self.box2.addstr(0,6,"Corrections In")
         self.box3.addstr(0,6,"Corrections Out")
@@ -145,6 +175,7 @@ class display():
         self.box9.addstr(0,12,"Delay")
         self.box10.addstr(0,17,"A Satellite")
 
+        # Contents of each window
         self.box1.addstr(1,1,' '*26)
         self.box1.addstr(1,1,_uptime.center(26, ' '))
 
@@ -175,9 +206,11 @@ class display():
         self.box9.addstr(1,1,' '*26)
         self.box9.addstr(1,1,str(delay).center(26, ' '))
 
+        # Ascii window
         for y, line in enumerate(self.ascii_art.splitlines(), 2):
             self.box10.addstr(y, 2, line)
         
+        # Refresh whole screen and each window
         self.stdscr.refresh()
         self.box1.refresh()
         self.box2.refresh()
@@ -190,7 +223,11 @@ class display():
         self.box9.refresh()
         self.box10.refresh()
 
+
 def asciiArt():
+    '''
+    Litterally just returns ascii art 
+    '''
     return(
     r'''
                 }--O--{
@@ -211,19 +248,33 @@ def asciiArt():
     )
 
 
+def main():
+    '''
+    Main funciton
+    '''
 
-if __name__ == '__main__':
+    # Generate an ip list
     ipList()
+
+    # Count the length of the list
     how_many = len(ip_list)
 
+    # Create threads
     p = Pool(processes=how_many)
+
+    # Open socket once (i.e not for each thread)
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # Set socket buffer options
     s.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 8388608)
+    # Bind to ip and port
     s.bind((binding_ip, source_port))
 
+    # Initialize curses display
     _display = display()
 
+    # Bröther may I have some lööps?
     while True:
+        # Receive UDP on socket
         try:
             s.settimeout(None)
             data, addr = s.recvfrom(32768)
@@ -232,12 +283,16 @@ if __name__ == '__main__':
             receive_errors += 1
             continue
 
+
         try:
             if addr[0] == source_ip:
                 prev_delay = time.time()
                 transmit_ok += 1
+                # Send data to each ip in separate threads
                 results = [p.apply_async(send, args=(ip, data, s,)) for ip in dest_ip_list]
+                # Convert results of threads to an array
                 output = [p.get() for p in results]
+                # Count success and errors
                 for i in output:
                     if i[1] == True:
                         send_ok += 1
@@ -247,10 +302,11 @@ if __name__ == '__main__':
         except:
             transmit_errors += 1
 
-        
+        # Calculate uptime
         uptime_seconds = time.time()-timestamp
         _uptime = uptime(uptime_seconds)
 
+        # Calculate percentages, handle dividing by 0
         try:
             receive_perc = round((1-(receive_errors/receive_ok))*100, 2)
         except:
@@ -264,7 +320,15 @@ if __name__ == '__main__':
         except:
             send_perc = 100
         
+        # Get kernal udp tx and rx buffer usage
         netstat = getBuffer()
+        # Calculate processing delay time
         delay = time.time()-prev_delay
 
+        # Refresh the screen
         _display.screen()
+
+
+
+if __name__ == '__main__':
+    main()
